@@ -1,0 +1,304 @@
+#Initializing Processes
+import re
+import time
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options 
+
+options = Options()
+#options.headless = false
+#options.add_argument("--window-size=1920,1200")
+
+Driver_path = 'C:\\Users\\zsori\\AppData\\Roaming\\Webdriver\\chromedriver'
+
+driver = webdriver.Chrome(options =options, executable_path = Driver_path) 
+
+#Main Function Definition
+def Youtube_Complete_History_Webscraper():
+   
+# User Input Sub-Function
+# How many youtubers are you gathering data on and which ones are they 
+
+    def mainUserInput(): 
+        mainUserLinks = []
+        numYoutubers = int(input('How many youtubers are you researching today?: '))
+        for i in range(0,numYoutubers):
+            mainUserLinks.append(i)
+            mainUserLinks[i] = str(input('What is this youtubers main link? (youtube.com/user...): '))
+    
+        UIoutput = [numYoutubers,mainUserLinks]
+        GIEoutput = 0
+        return UIoutput
+
+# General information extractor Sub-Function
+
+    def generalInfoExtractor_SF(UIoutput):
+        #Setup
+            #Preallocating and unpacking
+        numYoutubers = UIoutput[0]
+        mainUserLinks = UIoutput[1]
+        
+            #For Channel name
+        channelName = []
+        organizedLink = []
+            
+            #For Generation number & Number of points needed
+        genNum = []
+        uploadYear = []
+        numDataPoints = []
+        
+            #For Unique ID information
+        uniqueID = []
+        pageTitle = []
+        actualHTML = []
+                
+        GIEoutput = [0,0,0,0,0]
+        
+        for i in range (0,numYoutubers):
+            #Concatenating oldest videos first and base URL
+            organizedLink.append(i)
+            organizedLink[i] = mainUserLinks[i] +'/videos?view=0&sort=da&flow=grid'
+            
+            #Adding more elements
+            genNum.append(i)
+            genNum[i] = 0
+            numDataPoints.append(i)
+            numDataPoints[i] = 0
+            uploadYear.append(i)
+            uploadYear[i] = 0
+            channelName.append(i)
+            channelName[i] = 0
+            uniqueID.append(i)
+            uniqueID[i] = 0
+            
+            pageTitle.append(i)
+            pageTitle[i] = 0
+           
+        #Channel name
+            driver.get(organizedLink[i])
+            pageTitle[i] = driver.title
+            channel = re.compile(r' - ')
+            channelHyphen = channel.search(pageTitle[i])    
+            spaceAfter = channelHyphen.start()
+            channelName[i] = driver.title[0:spaceAfter:1]
+            
+        #Oldest video information
+            #Getting oldest video and its stats
+            driver.page_source
+            id = 'metadata-line'
+            classname = 'style-scope ytd-grid-video-renderer'
+            oldest_video = driver.find_element_by_id(id)
+            idapproach = (oldest_video.text)
+            oldest_video2 = driver.find_element_by_class_name(classname)
+            classapproach = (oldest_video2.text)
+
+            #RE helps to find numbers within string of information returning indecies
+            numbers = re.compile(r'\d+')
+            allnumbers = numbers.findall(classapproach)
+            uploadYear[i] = 2020 - int(allnumbers[-1])
+
+        #Getting outputs
+            #Generation number
+            if (uploadYear[i] >= 2005) & (uploadYear[i] < 2010):
+                genNum[i] = 1
+            elif (uploadYear[i] >= 2010) & (uploadYear[i] < 2014):
+                genNum[i] = 2
+            elif (uploadYear[i] >= 2014) & (uploadYear[i] < 2017):
+                genNum[i] = 3
+            elif (uploadYear[i] >= 2017) & (uploadYear[i] < 2021):
+                genNum[i] = 4
+            else:
+                print('wowee pog1gers')
+                
+        #Number of points needed
+            numDataPoints[i] = int(round(30 + (((8 * (2021-uploadYear[i])) ))))
+
+        #Unique ID information
+            #Gets all link tags
+            link = driver.find_elements_by_tag_name('link')
+            allLinks = (len(link))
+                        
+            #Putting all link tags into an array
+            for j in range (0,allLinks):
+                actualHTML.append(0)
+                actualHTML[j] = link[j]
+
+            relAttribute = re.compile('canonical')
+                
+            #Getting the actual code of the tags instead of reading selenium and returning which has the correct unique ID
+            for k in range (0,allLinks):           
+                actualHTML[k] = actualHTML[k].get_attribute('outerHTML')
+                canonicalString = relAttribute.search(actualHTML[k])
+                if type(canonicalString) == re.Match:
+                    uniqueIDline = actualHTML[k]                
+                
+            #Getting the unique ID
+            compileuniqueID = re.compile('https://www.youtube.com/channel/')
+            searchuniqueID = compileuniqueID.search(uniqueIDline)
+            startuniqueID = searchuniqueID.end()
+            lastuniqueID = int(len(uniqueIDline) -2)
+            uniqueID[i] = uniqueIDline[startuniqueID:lastuniqueID:1]
+            
+        #Summary Statemnt:
+            print('Channel: ' + channelName[i] + '\nGeneration Number: ' + str(genNum[i]) + '\nOPV Upload Year: ' + str(uploadYear[i]) + '\nData Points: ' + str(numDataPoints[i]) + '\nUnique ID: ' + str(uniqueID[i]) + '\n')
+        
+        #Assigning Outputs
+        GIEoutput[0] = channelName 
+        GIEoutput[1] = genNum
+        GIEoutput[2] = uploadYear
+        GIEoutput[3] = numDataPoints
+        GIEoutput[4] = uniqueID
+        return GIEoutput
+    
+# Social Blade Sub-Function
+
+    def Social_Blade_SF(UIoutput,GIEoutput):
+        #Preallocating and unpacking
+        numYoutubers = UIoutput[0]
+        numDataPoints =  GIEoutput[3]
+        uniqueID = GIEoutput[4]
+        
+            #For extracting the correct script
+        organizedLink = []
+        allJavascript = []
+        actualScript = []
+
+            #For extracting sub changes
+        year2018 =                      [str('1519794000000'),str('1522468800000'),     #2018:      Feb,Mar
+                    str('1525060800000'),str('1527739200000'),str('1530331200000'),     #       Apr,May,Jun
+                    str('1533009600000'),str('1535688000000'),str('1538280000000'),     #       Jul,Aug,Sep
+                    str('1540958400000'),str('1543554000000'),str('1546232400000'),]    #       Oct,Nov,Dec
+        
+        year2019 = [str('1548910800000'),str('1551330000000'),str('1554004800000'),     #2019:  Jan,Feb,Mar
+                    str('1556596800000'),str('1559275200000'),str('1561867200000'),     #       Apr,May,Jun
+                    str('1564545600000'),str('1567224000000'),str('1569816000000'),     #       Jul,Aug,Sep
+                    str('1572494400000'),str('1575090000000'),str('1577768400000'),]    #       Oct,Nov,Dec
+
+        year2020 = [str('1580446800000'),str('1582952400000'),str('1585627200000'),     #2020:  Jan,Feb,Mar
+                    str('1588219200000'),str('1590897600000'),str('1593489600000'),     #       Apr,May,Jun
+                    str('1596168000000'),str('1598846400000'),str('1601438400000'),     #       Jul,Aug,Sep
+                    str('1604116800000'),str('1606712400000'),str('1609390800000'),]    #       Oct,Nov,Dec
+
+        monthlysubChange = []
+        passingArray = []
+
+        SBoutput = [0,0,0,0]
+
+        for i in range(0,numYoutubers):
+        #Setups
+            #Adding More Elements
+            allJavascript.append(0)
+
+            #Navigating from Social blade homepage to the channel of interest however cloudflare makes this hard
+            def Social_Blade_fromHomepage():
+                driver.get('https://socialblade.com/')
+                inputID = driver.find_element_by_id('SearchInput')
+                inputID.send_keys(channelName[i])
+                time.sleep(10)
+                searchButton = driver.find_element_by_class_name('search-button')
+                searchButton.click()
+                time.sleep(30)
+                channelQuery = driver.current_url 
+
+            #Setting up the correct URL (Concatenating base URL and unique ID)
+            organizedLink.append(0)
+            organizedLink[i] = 'https://socialblade.com/youtube/channel/' + uniqueID[i]
+
+            #Setting up correct regex search
+            lenYear2018 = len(year2018)
+            lenYear2019 = len(year2019)
+            lenYear2020 = len(year2020)
+            for a in range (0,lenYear2018):
+                year2018[a] = str(year2018[a] + ',\d*]')
+            for b in range (0,lenYear2019):
+                year2019[b] = str(year2019[b] + ',\d*]')
+            for c in range (0,lenYear2020):
+                year2020[c] = str(year2020[c] + ',\d*]')
+
+            #Setting up monthly change index
+            for d in range (0,int(lenYear2018+lenYear2019+lenYear2020)):
+                monthlysubChange.append(0)
+            lenMonthlysubChange = len(monthlysubChange)
+            
+    #Determining if channel underwent explosive growth in the past 3 years
+        
+        #Getting monthly changes in sub gains and video views scripts
+   
+            #Gets all script tags
+            driver.get(organizedLink[i])
+            driver.page_source
+            allJavascript = driver.find_elements_by_tag_name('script')
+            lenJavascript = len(allJavascript)
+            
+            #Adding elements and putting all html tags into an array
+            for j in range(0,lenJavascript):
+                actualScript.append(0)
+                actualScript[j] = allJavascript[j]
+                
+            typeAttribute = re.compile('(Highcharts)')
+
+            #Getting the actual code of the tags instead of reading selenium and returning which has the correct java script
+            for k in range(0,lenJavascript):
+                actualScript[k] = actualScript[k].get_attribute('outerHTML')
+                typeString = typeAttribute.search(actualScript[k])
+                if type(typeString) == re.Match:
+                    realScript = k
+            
+            #Getting the change in sub count 
+            realScript = actualScript[realScript]
+            for l in range(0,lenYear2018):                                       
+                yearof2018 = re.compile(year2018[l])
+                subChange = yearof2018.search(realScript)
+
+                start = int(subChange.start()+14) #the 14 is to push the start to the actual sub change number not including the month number
+                end = int(subChange.end()-1)
+                monthlysubChange[l] = realScript[start:end:1]
+
+            for m in range(0,lenYear2019):
+                yearof2019 = re.compile(year2019[m])
+                subChange = yearof2019.search(realScript)
+                
+                start = int(subChange.start()+14) 
+                end = int(subChange.end()-1)
+                monthlysubChange[m+l+1] = realScript[start:end:1] #trying to translate the entire data set to the right so that it doesn't overwrite previous info
+
+            for n in range(0,lenYear2020):
+                yearof2020 = re.compile(year2020[n])
+                subChange = yearof2020.search(realScript)
+                
+                start = int(subChange.start()+14) 
+                end = int(subChange.end()-1)
+                monthlysubChange[n+m+l+2] = realScript[start:end:1] 
+            
+            print(monthlysubChange)
+            
+
+        return SBoutput
+      
+ #Outputs Class
+    class Outputs:
+        def __init__ (output,UI,GIE,SB):#,WBM,SB,CYT,Stat):
+            output.UI = UIoutput
+            output.GIE = GIEoutput
+            #output.WBM = WBMoutput
+            output.SB = SBoutput
+            #output.CYT = CYToutput
+            #output.Stat = Statoutput
+
+ #Main Execution Order   
+    UIoutput = mainUserInput() 
+    GIEoutput = generalInfoExtractor_SF(UIoutput)
+    SBoutput = Social_Blade_SF(UIoutput,GIEoutput)
+
+    outputs = Outputs(UIoutput,GIEoutput,SBoutput)
+    print(outputs.UI)
+    print(outputs.GIE)
+    print(outputs.SB)
+    
+Youtube_Complete_History_Webscraper()
+
+
+#Test : https://m.youtube.com/c/MichaelReeves
+#Test : https://youtube.com/user/VanossGaming
+#Test : https://youtube.com/user/PewDiePie
+#Test : https://www.youtube.com/user/DreamTraps
+#Test : https://www.youtube.com/user/LilyPichu
